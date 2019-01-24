@@ -1123,19 +1123,22 @@ static void initialize_netdevices(void)
 		return;
 #endif
 	unsigned i;
-	const char* devtypes[] = {"ip6gretap", "bridge", "vcan", "bond", "team"};
+	const char* devtypes[] = {"ip6gretap", "bridge", "vcan", "bond", "team",
+				  "wireguard"};
 	const char* devnames[] = {"lo", "sit0", "bridge0", "vcan0", "tunl0",
 				  "gre0", "gretap0", "ip_vti0", "ip6_vti0",
 				  "ip6tnl0", "ip6gre0", "ip6gretap0",
 				  "erspan0", "bond0", "veth0", "veth1", "team0",
 				  "veth0_to_bridge", "veth1_to_bridge",
 				  "veth0_to_bond", "veth1_to_bond",
-				  "veth0_to_team", "veth1_to_team"};
+				  "veth0_to_team", "veth1_to_team",
+				  "wireguard0", "wireguard1"};
 	const char* devmasters[] = {"bridge", "bond", "team"};
 
 	for (i = 0; i < sizeof(devtypes) / (sizeof(devtypes[0])); i++)
 		execute_command(0, "ip link add dev %s0 type %s", devtypes[i], devtypes[i]);
 	execute_command(0, "ip link add type veth");
+	execute_command(0, "ip link add dev %s1 type %s", devtypes[5], devtypes[5]);
 	for (i = 0; i < sizeof(devmasters) / (sizeof(devmasters[0])); i++) {
 		execute_command(0, "ip link add name %s_slave_0 type veth peer name veth0_to_%s", devmasters[i], devmasters[i]);
 		execute_command(0, "ip link add name %s_slave_1 type veth peer name veth1_to_%s", devmasters[i], devmasters[i]);
@@ -1157,6 +1160,13 @@ static void initialize_netdevices(void)
 		execute_command(0, "ip link set dev %s address %s", devnames[i], addr);
 		execute_command(0, "ip link set dev %s up", devnames[i]);
 	}
+	char addr[32];
+	snprintf_check(addr, sizeof(addr), DEV_IPV4, i + 10);
+	execute_command(0, "ip route add %s dev wireguard0", addr);
+	snprintf_check(addr, sizeof(addr), DEV_IPV4, i + 10);
+	execute_command(0, "ip route add %s dev wireguard1", addr);
+	execute_command(0, "ip link set dev wireguard0 up");
+	execute_command(0, "ip link set dev wireguard1 up");
 }
 #endif
 

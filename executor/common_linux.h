@@ -252,7 +252,8 @@ static void initialize_netdevices(void)
 		return;
 #endif
 	unsigned i;
-	const char* devtypes[] = {"ip6gretap", "bridge", "vcan", "bond", "team"};
+	const char* devtypes[] = {"ip6gretap", "bridge", "vcan", "bond", "team",
+				  "wireguard"};
 	// If you extend this array, also update netdev_addr_id in vnet.txt.
 	const char* devnames[] = {"lo", "sit0", "bridge0", "vcan0", "tunl0",
 				  "gre0", "gretap0", "ip_vti0", "ip6_vti0",
@@ -260,13 +261,16 @@ static void initialize_netdevices(void)
 				  "erspan0", "bond0", "veth0", "veth1", "team0",
 				  "veth0_to_bridge", "veth1_to_bridge",
 				  "veth0_to_bond", "veth1_to_bond",
-				  "veth0_to_team", "veth1_to_team"};
+				  "veth0_to_team", "veth1_to_team",
+				  "wireguard0", "wireguard1"};
 	const char* devmasters[] = {"bridge", "bond", "team"};
 
 	for (i = 0; i < sizeof(devtypes) / (sizeof(devtypes[0])); i++)
 		execute_command(0, "ip link add dev %s0 type %s", devtypes[i], devtypes[i]);
 	// This adds connected veth0 and veth1 devices.
 	execute_command(0, "ip link add type veth");
+	// The above loop creates one wireguard instance; create another.
+	execute_command(0, "ip link add dev %s1 type %s", devtypes[5], devtypes[5]);
 
 	// This creates connected bridge/bond/team_slave devices of type veth,
 	// and makes them slaves of bridge/bond/team devices, respectively.
@@ -298,6 +302,16 @@ static void initialize_netdevices(void)
 		execute_command(0, "ip link set dev %s address %s", devnames[i], addr);
 		execute_command(0, "ip link set dev %s up", devnames[i]);
 	}
+
+    // Set up the wireguard interfaces to be able to take input from each other.
+    // TODO(jones): Is the wg command in path?
+    execute_command(0, "wg genkey | tee private0");
+    execute_command(0, "cat private0 | wg pubkey | tee public0");
+    execute_command(0, "wg genkey | tee private1");
+    execute_command(0, "cat private1 | wg pubkey | tee public1");
+    execute_command(0, "wg set wg0 private-key private0");
+    execute_command(0, "wg set wg1 private-key private1");
+
 }
 #endif
 

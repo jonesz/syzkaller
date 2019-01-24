@@ -1,0 +1,52 @@
+# 2018, Ethan Jones.
+
+# AF_NETLINK/NETLINK_GENERIC/wireguard support.
+
+include <linux/net.h>
+include <net/netlink.h>
+include <uapi/linux/netlink.h>
+include <uapi/linux/genetlink.h>
+include <net/wireguard/uapi/wireguard.h>
+include <uapi/linux/in.h>
+
+define WG_KEY_LEN 32
+
+resource genl_wg_family_id[int16]
+resource ifindex_wg[ifindex]
+type msghdr_nl_wg[CMD] msghdr_netlink[netlink_msg_t[genl_wg_family_id, genlmsghdr_t[CMD], wg_nl_policy]]
+
+syz_genetlink_get_family_id$wg(name ptr[in, string["wireguard"]]) genl_wg_family_id
+# TODO: We have both wg0 and wg1 devices (hopefully) initiated in the kernel.
+ioctl$ifreq_SIOCGIFINDEX_wg(fd sock, cmd const[SIOCGIFINDEX], arg ptr[inout, ifreq_dev_t["wg0", ifindex_wg[opt]]])
+
+sendmsg$WG_CMD_GET_DEVICE(fd sock_nl_generic, msg ptr[in, msghdr_nl_wg[WG_CMD_GET_DEVICE]], f flags[send_flags])
+sendmsg$WG_CMD_SET_DEVICE(fd sock_nl_generic, msg ptr[in, msghdr_nl_wg[WG_CMD_SET_DEVICE]], f flags[send_flags])
+
+wg_nl_policy [
+	WGDEVICE_A_IFINDEX	    nlattr[WGDEVICE_A_IFINDEX, int32]
+    # TODO: We're only trying IFINDEX, not IFNAME.
+    # WGDEVICE_A_IFNAME 
+	WGDEVICE_A_FLAGS	    nlattr[WGDEVICE_A_FLAGS, int32]
+	WGDEVICE_A_PRIVATE_KEY	nlattr[WGDEVICE_A_FLAGS, array[int8, 32]]
+	WGDEVICE_A_LISTEN_PORT	nlattr[WGDEVICE_A_LISTEN_PORT, int16]
+	WGDEVICE_A_FWMARK	    nlattr[WGDEVICE_A_FWMARK, int32]
+	WGDEVICE_A_PEERS	    nlattr[WGDEVICE_A_PEERS, array[wg_nl_peers]]
+] [varlen]
+
+wg_nl_peers [
+	WGPEER_A_PUBLIC_KEY			nlattr[WGPEER_A_PUBLIC_KEY, array[int8, 32]]
+	WGPEER_A_FLAGS				nlattr[WGPEER_A_FLAGS, int32]
+	WGPEER_A_PRESHARED_KEY		nlattr[WGPEER_A_PRESHARED_KEY, array[int8, 32]]
+    # TODO: sockaddr_in or sockaddr_in6
+	WGPEER_A_ENDPOINT			nlattr[WGPEER_A_ENDPOINT, sockaddr_in]
+	WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL	nlattr[WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL, int16]
+	WGPEER_A_ALLOWEDIPS			nlattr[WGPEER_A_ALLOWEDIPS, array[wg_nl_peer_allowedips]]
+	WGPEER_A_PROTOCOL_VERSION	nlattr[WGPEER_A_PROTOCOL_VERSION, int32]
+] [varlen]
+
+wg_nl_peer_allowedips [
+	WGALLOWEDIP_A_FAMILY	    nlattr[WGALLOWEDIP_A_FAMILY, int16]
+    # TODO: in_addr or in6_addr
+    # WGALLOWEDIP_A_IPADDR        nlattr[WGALLOWEDIP_A_IPADDR, in_addr]
+	WGALLOWEDIP_A_CIDR_MASK	    nlattr[WGALLOWEDIP_A_CIDR_MASK, int8]
+] [varlen]
