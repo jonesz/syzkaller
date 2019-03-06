@@ -1132,7 +1132,7 @@ static void initialize_netdevices(void)
 				  "veth0_to_bridge", "veth1_to_bridge",
 				  "veth0_to_bond", "veth1_to_bond",
 				  "veth0_to_team", "veth1_to_team",
-				  "wireguard0", "wireguard1"};
+				  "wg0", "wg1"};
 	const char* devmasters[] = {"bridge", "bond", "team"};
 
 	for (i = 0; i < sizeof(devtypes) / (sizeof(devtypes[0])); i++)
@@ -1160,13 +1160,12 @@ static void initialize_netdevices(void)
 		execute_command(0, "ip link set dev %s address %s", devnames[i], addr);
 		execute_command(0, "ip link set dev %s up", devnames[i]);
 	}
-	char addr[32];
-	snprintf_check(addr, sizeof(addr), DEV_IPV4, i + 10);
-	execute_command(0, "ip route add %s dev wireguard0", addr);
-	snprintf_check(addr, sizeof(addr), DEV_IPV4, i + 10);
-	execute_command(0, "ip route add %s dev wireguard1", addr);
-	execute_command(0, "ip link set dev wireguard0 up");
-	execute_command(0, "ip link set dev wireguard1 up");
+	execute_command(0, "wg genkey | tee private0");
+	execute_command(0, "cat private0 | wg pubkey | tee public0");
+	execute_command(0, "wg genkey | tee private1");
+	execute_command(0, "cat private1 | wg pubkey | tee public1");
+	execute_command(0, "wg set wg0 private-key private0");
+	execute_command(0, "wg set wg1 private-key private1");
 }
 #endif
 
